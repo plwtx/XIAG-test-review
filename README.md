@@ -1,52 +1,146 @@
-# run with ` yarn run demo`
+### Review notes
 
-***
-***
-***
+Below you can find my notes and comments additional to inline comments within the components.
 
-# Getting Started with Create React App
+---
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+#### 0. Structure
 
-## Available Scripts
+###### Current structure:
 
-In the project directory, you can run:
+```
+.
+├── .idea/
+├── node_modules/
+├── public/
+├── src/
+│   ├── components/
+│   │   ├── App/
+│   │   │   ├── App.css
+│   │   │   ├── App.test.tsx
+│   │   │   ├── index.tsx
+│   │   ├── InputNewTodo/
+│   │   │   ├── index.tsx
+│   │   │   └── InputNewTodo.module.css
+│   │   ├── MainApp/
+│   │   │   ├── index.tsx
+│   │   │   └── MainApp.module.css
+│   │   └── UserSelect/
+│   │   │   ├── index.tsx
+│   │   │   └── UserSelect.module.css
+│   ├── store/
+│   │   └── index.ts
+│   ├── global.d.ts
+│   ├── index.css
+│   ├── index.tsx
+│   ├── logo.svg
+│   ├── react-app-env.d.ts
+│   ├── reportWebVitals.ts
+│   └── setupTests.ts
+├── .gitignore
+├── package.json
+├── README.md
+├── TODO.md
+├── tsconfig.json
+└── yarn.lock
+```
 
-### `yarn start`
+###### Preferred / cleaner structure:
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+```
+.
+├── .idea/
+├── node_modules/
+├── public/
+├──src/
+│   ├── assets/              # Static files (images, icons, fonts).
+│   ├── components/          # Shared UI components.
+│   │   ├── ui/              # Reusable  components.
+│   │   └── layout/          # Sidebars, Navbars & other general layout components.
+│   ├── features/
+│   │   ├── todo-list/       # Components related to TODO
+│   │   │   ├── components/  # Feature-specific components (InputNewTodo)
+│   │   │   ├── hooks/       # Feature-specific logic (useTodos)
+│   │   │   └── services/    # API specific to TODO.
+│   │   └── user-select/
+│   │   └── user-management/ # Components related to USER.
+│   ├── hooks/
+│   ├── pages/               # Seperated by routes.
+│   ├── store/               # State management.
+│   ├── utils/               # Class constructors, CVAs & etc.
+│   ├── App/                 # Main application entry.
+│   │   ├── App.css
+│   │   ├── App.test.tsx
+│   │   ├── index.tsx
+│   │   ├── MainApp/
+│   └── index.css
+│   ├── global.d.ts
+│   ├── react-app-env.d.ts
+│   ├── reportWebVitals.ts
+│   └── setupTests.ts
+├── .gitignore
+├── package.json
+├── README.md
+├── TODO.md
+├── tsconfig.json
+└── yarn.lock
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+**Explanation:**
+I would add a `/features/` directiory to reduce the size of general components folder. With this approach I would seperate the logic and UI / layout components. It would keep the app much easier to navigate as it scales. For routes I would use seperate `/pages/` directory. With these changes project structure would fit React's ideal SoC principle.
 
-### `yarn test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Major Issues & Fixes (effecting application scalability.):
 
-### `yarn build`
+#### 1 - N+1 API CALL Problem
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+In `UserSelect/index.tsx`, component performs a fetch inside useEffect. This will raise a critical performance issues as app scales. The component is rendered inside a map loop in `MainApp/index.tsx`. For example if we have 1k todos, the app will send 1k seperate network requests to jsonplaceholder, which will significantly slow the performance.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+**Fix**: The user list should be fetched once (in either App.tsx or store) and passed down to UserSelect as a prop or selected from the store.
+(Check inline comment withing `components/MainApp/index.tsx` and `components/UserSelect/index.tsx`, comments with [ 1 ] address the fixes.)
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+#### 2 - Side Effect
 
-### `yarn eject`
+The `window.allTodosIsDone` is not pure within react render method and it is considered a side effect. Mutating the global window object will cause unpredictable outcome and interfere with testing.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+**Fix**: It should be a local constant.
+(Check inline comment withing `components/MainApp/index.tsx`, comments with [ 2 ] address the fixes.)
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+#### 3 - Derived State Anti-Pattern (InputNewTodo.tsx)
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+Copying props to state is a React anti-pattern. Component tries to keep its own state in sync with the parent props, which adds a layer of complexity and possible future bugs.
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+**Fix**: To make it a controlled component we need to remove its internal state and rely on the data passed down from the parent.
+(Check inline comment withing `components/InputNewTodo/index.tsx`, comments with [ 3 ] address the fixes.)
 
-## Learn More
+### App-breaking bugs, crashes, others - Issues & Fixes
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+#### 1. Issue with `store/index.ts`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+The error upon running the app happens because the Redux state is being mutated directly in the reducer, which violates Redux principles.
+
+**Fix**: Returning a new object with a new array instead of modifying original state. (Check inline comment withing `store/index.ts`)
+Additionally as a good practice we can spread the state into CHANGE_TODOS.
+
+#### 2. Issue with `components/MainApp/index.tsx`
+
+Checkmark of "all todos is done!" only listens to the last task added.
+
+**Fix**: Replace map loop in index.tsx with the .every() method, so it correctly checks if all items match the condition. (Check inline comment withing `components/MainApp/index.tsx`)
+
+#### Other Issues & Fixes:
+
+- Upon adding a task there is no option for "Unassigned," so the browser will default to the first user in the list.
+- keyCode is deprecated ( in `components/InputNewTodo/index.tsx`). Use event.key instead of keyCode.
+- There should be a limit on characters of task name.
+- Add user key so there is no lack of UID (key={user.id} to options in `src/components/UserSelect/index.tsx`, `src/components/MainApp/index.tsx`)
+- Warning within browser console appears because the "all todos is done!" checkbox has a value (checked) but no way to change it (onChange), to fix this, we can add the readOnly prop to that specific checkbox.
+
+---
+
+##### Additional notes
+
+###### 1. I would create a new file (`src/components/store/types.ts`) to hold the type definitions. In long term this would help with scalability and allows us to import them anywhere.
+
+###### 2. Styling I have not made any fixes or comments on styling since I believe the task was more on the logic side. However, some of the noticable issues are on: responsiveness of the app on mobile screen (when assigning user to a task); text overflow upon character exceeding (approx. 13 characters); and others.

@@ -2,42 +2,37 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import styles from "./UserSelect.module.css";
 
+// [ 1 ] + users array (users: any[];) to props definition
 type UserSelectProps = {
   user?: number;
   idx: number;
+  users: any[];
 };
 
 function UserSelect(props: UserSelectProps) {
   const dispatch = useDispatch();
   const todos = useSelector((state: { list: { todos: any[] } }) => state.list.todos);
-  React.useEffect(() => {
-    // Remove unnecessary userSelect log.
-    // console.log("userSelect");
-    fetch("https://jsonplaceholder.typicode.com/users/")
-      .then((users) => users.json())
-      .then((users) => setOptions(users));
-  }, []);
-  const [options, setOptions] = React.useState([]);
+
+  // - useEffect and contained fetching as they are no longer neededd here.
 
   const { idx } = props;
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const changedTodos = todos.map((t, index) => {
       const res = { ...t };
-      if (index == idx) {
-        console.log("props.user", props.user);
-        res.user = e.target.value;
+      if (index === idx) {
+        res.user = e.target.value ? parseInt(e.target.value, 10) : undefined;
       }
       return res;
     });
-    // TYPO: CHANGE_TODO is singular but store/index.ts listens for CHANGE_TODOS (This will prevent the user assignment from being saved.)
     dispatch({ type: "CHANGE_TODOS", payload: changedTodos });
   };
 
   return (
-    <select name="user" className={styles.user} onChange={handleChange}>
-      {/* <select> tag is missing the value prop (value={props.user || ""})*/}
-      {options.map((user: any) => (
-        // Add key={user.id} to prevent UID issues
+    <select name="user" className={styles.user} onChange={handleChange} value={props.user || ""}>
+      {/* <select> tag was missing the value prop (value={props.user || ""})*/}
+      <option value="">Unassigned</option>
+      {/* + props.users instead of local state (+ Initialize with Unassigned instead of assigning the first person on the list)*/}
+      {props.users.map((user: any) => (
         <option key={user.id} value={user.id}>
           {user.name}
         </option>
